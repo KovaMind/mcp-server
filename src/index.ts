@@ -79,22 +79,28 @@ server.tool(
       };
     }
 
-    const body: Record<string, unknown> = { conversation, user_id: uid };
-    if (session_id) body.session_id = session_id;
+    try {
+      const body: Record<string, unknown> = { conversation, user_id: uid };
+      if (session_id) body.session_id = session_id;
 
-    const data = await apiRequest("POST", "/memory/extract", body);
-    const patterns = (data.patterns ?? data.results ?? []) as any[];
+      const data = await apiRequest("POST", "/memory/extract", body);
+      const patterns = (data.patterns ?? data.results ?? []) as any[];
 
-    const lines = [`Extracted ${patterns.length} pattern(s):\n`];
-    for (const p of patterns) {
-      lines.push(
-        `- [${p.category ?? "unknown"}] ${p.pattern} (confidence: ${((p.confidence ?? 1) * 100).toFixed(0)}%)`
-      );
+      const lines = [`Extracted ${patterns.length} pattern(s):\n`];
+      for (const p of patterns) {
+        lines.push(
+          `- [${p.category ?? "unknown"}] ${p.pattern} (confidence: ${((p.confidence ?? 1) * 100).toFixed(0)}%)`
+        );
+      }
+
+      return {
+        content: [{ type: "text" as const, text: lines.join("\n") }],
+      };
+    } catch (err: any) {
+      return {
+        content: [{ type: "text" as const, text: `Extract failed: ${err.message}` }],
+      };
     }
-
-    return {
-      content: [{ type: "text" as const, text: lines.join("\n") }],
-    };
   }
 );
 
@@ -136,36 +142,42 @@ server.tool(
       };
     }
 
-    const data = await apiRequest("POST", "/memory/retrieve", {
-      context,
-      user_id: uid,
-      max_patterns,
-      min_confidence,
-    });
+    try {
+      const data = await apiRequest("POST", "/memory/retrieve", {
+        context,
+        user_id: uid,
+        max_patterns,
+        min_confidence,
+      });
 
-    const patterns = (data.patterns ??
-      data.results ??
-      data.memories ??
-      []) as any[];
+      const patterns = (data.patterns ??
+        data.results ??
+        data.memories ??
+        []) as any[];
 
-    if (patterns.length === 0) {
+      if (patterns.length === 0) {
+        return {
+          content: [
+            { type: "text" as const, text: "No matching memories found." },
+          ],
+        };
+      }
+
+      const lines = [`Found ${patterns.length} memory pattern(s):\n`];
+      for (const p of patterns) {
+        lines.push(
+          `- [${p.category ?? "unknown"}] ${p.pattern} (confidence: ${((p.confidence ?? 1) * 100).toFixed(0)}%, id: ${p.id})`
+        );
+      }
+
       return {
-        content: [
-          { type: "text" as const, text: "No matching memories found." },
-        ],
+        content: [{ type: "text" as const, text: lines.join("\n") }],
+      };
+    } catch (err: any) {
+      return {
+        content: [{ type: "text" as const, text: `Recall failed: ${err.message}` }],
       };
     }
-
-    const lines = [`Found ${patterns.length} memory pattern(s):\n`];
-    for (const p of patterns) {
-      lines.push(
-        `- [${p.category ?? "unknown"}] ${p.pattern} (confidence: ${((p.confidence ?? 1) * 100).toFixed(0)}%, id: ${p.id})`
-      );
-    }
-
-    return {
-      content: [{ type: "text" as const, text: lines.join("\n") }],
-    };
   }
 );
 
@@ -184,25 +196,31 @@ server.tool(
       .describe("Optional explanation for the reinforcement"),
   },
   async ({ pattern_id, reinforcement_type, context }) => {
-    const body: Record<string, unknown> = {
-      pattern_id,
-      reinforcement_type,
-    };
-    if (context) body.context = context;
+    try {
+      const body: Record<string, unknown> = {
+        pattern_id,
+        reinforcement_type,
+      };
+      if (context) body.context = context;
 
-    const data = await apiRequest("POST", "/memory/reinforce", body);
-    const success = data.success ?? true;
+      const data = await apiRequest("POST", "/memory/reinforce", body);
+      const success = data.success ?? true;
 
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: success
-            ? `Pattern ${pattern_id} ${reinforcement_type} successfully.`
-            : `Failed to reinforce pattern ${pattern_id}.`,
-        },
-      ],
-    };
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: success
+              ? `Pattern ${pattern_id} ${reinforcement_type} successfully.`
+              : `Failed to reinforce pattern ${pattern_id}.`,
+          },
+        ],
+      };
+    } catch (err: any) {
+      return {
+        content: [{ type: "text" as const, text: `Reinforce failed: ${err.message}` }],
+      };
+    }
   }
 );
 
@@ -230,31 +248,37 @@ server.tool(
       };
     }
 
-    const data = await apiRequest("POST", "/memory/surprise", {
-      content,
-      user_id: uid,
-    });
+    try {
+      const data = await apiRequest("POST", "/memory/surprise", {
+        content,
+        user_id: uid,
+      });
 
-    const score = (data.surprise_score ?? data.score ?? 0) as number;
-    const route = data.route ?? "update";
+      const score = (data.surprise_score ?? data.score ?? 0) as number;
+      const route = data.route ?? "update";
 
-    let interpretation: string;
-    if (score < 0.3) {
-      interpretation = "Familiar — reinforces existing memory";
-    } else if (score < 0.7) {
-      interpretation = "New information — stored as update";
-    } else {
-      interpretation = "Contradicts existing memory — flagged";
+      let interpretation: string;
+      if (score < 0.3) {
+        interpretation = "Familiar — reinforces existing memory";
+      } else if (score < 0.7) {
+        interpretation = "New information — stored as update";
+      } else {
+        interpretation = "Contradicts existing memory — flagged";
+      }
+
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Surprise score: ${score.toFixed(2)}\nRoute: ${route}\nInterpretation: ${interpretation}`,
+          },
+        ],
+      };
+    } catch (err: any) {
+      return {
+        content: [{ type: "text" as const, text: `Surprise failed: ${err.message}` }],
+      };
     }
-
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: `Surprise score: ${score.toFixed(2)}\nRoute: ${route}\nInterpretation: ${interpretation}`,
-        },
-      ],
-    };
   }
 );
 
