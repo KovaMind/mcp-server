@@ -63,9 +63,9 @@ describe("source code", () => {
     expect(src).toContain('from "zod"');
   });
 
-  it("registers exactly 5 tools", () => {
+  it("registers exactly 9 tools (5 memory + 4 vault)", () => {
     const toolMatches = src.match(/server\.tool\(/g);
-    expect(toolMatches).toHaveLength(5);
+    expect(toolMatches).toHaveLength(9);
   });
 
   it("registers memory_extract tool", () => {
@@ -136,6 +136,42 @@ describe("source code", () => {
   it("has error handling (try/catch) in health tool", () => {
     const healthBlock = src.slice(src.indexOf('"memory_health"'));
     expect(healthBlock).toContain("catch");
+  });
+
+  it("registers vault_store tool", () => {
+    expect(src).toContain('"vault_store"');
+  });
+
+  it("registers vault_get tool", () => {
+    expect(src).toContain('"vault_get"');
+  });
+
+  it("registers vault_list tool", () => {
+    expect(src).toContain('"vault_list"');
+  });
+
+  it("registers vault_delete tool", () => {
+    expect(src).toContain('"vault_delete"');
+  });
+
+  it("URL-encodes secret_id in vault_get", () => {
+    expect(src).toContain("encodeURIComponent(secret_id)");
+  });
+
+  it("URL-encodes secret_id in vault_delete", () => {
+    const deleteBlock = src.slice(src.indexOf('"vault_delete"'));
+    expect(deleteBlock).toContain("encodeURIComponent(secret_id)");
+  });
+
+  it("has error handling in vault tools", () => {
+    const vaultSection = src.slice(src.indexOf('"vault_store"'));
+    const catchCount = (vaultSection.match(/catch/g) || []).length;
+    expect(catchCount).toBeGreaterThanOrEqual(4);
+  });
+
+  it("sanitizes URLs in vault error messages", () => {
+    const vaultSection = src.slice(src.indexOf('"vault_store"'));
+    expect(vaultSection).toContain("[redacted]");
   });
 
   it("resolveUserId falls back to env var", () => {
