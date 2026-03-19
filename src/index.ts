@@ -98,7 +98,7 @@ server.tool(
       };
     } catch (err: any) {
       return {
-        content: [{ type: "text" as const, text: `Extract failed: ${err.message}` }],
+        content: [{ type: "text" as const, text: `Extract failed: ${err.message?.replace(/https?:\/\/[^\s]+/g, "[redacted]")}` }],
       };
     }
   }
@@ -175,7 +175,7 @@ server.tool(
       };
     } catch (err: any) {
       return {
-        content: [{ type: "text" as const, text: `Recall failed: ${err.message}` }],
+        content: [{ type: "text" as const, text: `Recall failed: ${err.message?.replace(/https?:\/\/[^\s]+/g, "[redacted]")}` }],
       };
     }
   }
@@ -218,7 +218,7 @@ server.tool(
       };
     } catch (err: any) {
       return {
-        content: [{ type: "text" as const, text: `Reinforce failed: ${err.message}` }],
+        content: [{ type: "text" as const, text: `Reinforce failed: ${err.message?.replace(/https?:\/\/[^\s]+/g, "[redacted]")}` }],
       };
     }
   }
@@ -276,7 +276,7 @@ server.tool(
       };
     } catch (err: any) {
       return {
-        content: [{ type: "text" as const, text: `Surprise failed: ${err.message}` }],
+        content: [{ type: "text" as const, text: `Surprise failed: ${err.message?.replace(/https?:\/\/[^\s]+/g, "[redacted]")}` }],
       };
     }
   }
