@@ -407,6 +407,29 @@ server.tool(
   }
 );
 
+
+// Tool: vault_find
+server.tool(
+  "vault_find",
+  "Find credentials matching a search query. Returns matching handles with relevance scores. You will never see credential values.",
+  {
+    query: z.string().min(1).describe("Search query (e.g., 'GitHub login', 'API key', 'database')"),
+  },
+  async ({ query }) => {
+    try {
+      const data = await apiRequest("GET", `/vault/v2/find?q=${encodeURIComponent(query)}`);
+      const results = (data.results ?? []) as Array<{ handle: string; label: string; schema_type: string; score: number }>;
+      if (results.length === 0) {
+        return { content: [{ type: "text" as const, text: "No matching credentials found." }] };
+      }
+      const lines = results.map((r, i) => `${i + 1}. [${r.schema_type}] ${r.label} (handle: ${r.handle}, score: ${r.score.toFixed(2)})`);
+      return { content: [{ type: "text" as const, text: `Found ${results.length} match(es):\n${lines.join("\n")}` }] };
+    } catch (err: any) {
+      return { content: [{ type: "text" as const, text: `Vault find failed: ${err.message}` }] };
+    }
+  }
+);
+
 // Tool: vault_execute
 server.tool(
   "vault_execute",
@@ -416,11 +439,13 @@ server.tool(
     action: z.string().min(1).describe("Action: http_request or browser_fill"),
     target: z.string().min(1).describe("Target URL"),
     mapping: z.record(z.string()).optional().describe('Field-to-target mapping (e.g., {" key": "header:Authorization"})'),
+    auto_detect: z.string().optional().describe("Query to auto-detect credential instead of providing handle"),
   },
-  async ({ handle, action, target, mapping }) => {
+  async ({ handle, action, target, mapping, auto_detect }) => {
     try {
       const body: Record<string, unknown> = { handle, action, target };
       if (mapping) body.mapping = mapping;
+      if (auto_detect) body.auto_detect = auto_detect;
       const data = await apiRequest("POST", "/vault/v2/execute", body);
       const success = data.success as boolean;
       const output = data.output as string;

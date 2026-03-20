@@ -63,9 +63,9 @@ describe("source code", () => {
     expect(src).toContain('from "zod"');
   });
 
-  it("registers exactly 11 tools (5 memory + 6 vault)", () => {
+  it("registers exactly 12 tools (5 memory + 7 vault)", () => {
     const toolMatches = src.match(/server\.tool\(/g);
-    expect(toolMatches).toHaveLength(11);
+    expect(toolMatches).toHaveLength(12);
   });
 
   it("registers memory_extract tool", () => {
@@ -106,6 +106,10 @@ describe("source code", () => {
 
   it("registers vault_handles tool", () => {
     expect(src).toContain('"vault_handles"');
+  });
+
+  it("registers vault_find tool", () => {
+    expect(src).toContain('"vault_find"');
   });
 
   it("registers vault_execute tool", () => {
@@ -198,6 +202,7 @@ describe("source code", () => {
     expect(src).toContain("/vault/v2/lock");
     expect(src).toContain("/vault/v2/credentials");
     expect(src).toContain("/vault/v2/handles");
+    expect(src).toContain("/vault/v2/find");
     expect(src).toContain("/vault/v2/execute");
   });
 });
