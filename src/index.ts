@@ -435,7 +435,7 @@ server.tool(
   "vault_execute",
   "Execute an action using a credential. The credential is never exposed to you — it flows through a secure side channel.",
   {
-    handle: z.string().min(1).describe("Credential handle from vault_handles"),
+    handle: z.string().optional().default("").describe("Credential handle from vault_handles (omit if using auto_detect)"),
     action: z.string().min(1).describe("Action: http_request or browser_fill"),
     target: z.string().min(1).describe("Target URL"),
     mapping: z.record(z.string()).optional().describe('Field-to-target mapping (e.g., {" key": "header:Authorization"})'),
