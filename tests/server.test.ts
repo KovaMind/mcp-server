@@ -63,9 +63,9 @@ describe("source code", () => {
     expect(src).toContain('from "zod"');
   });
 
-  it("registers exactly 5 memory tools", () => {
+  it("registers exactly 12 tools (5 memory + 7 vault)", () => {
     const toolMatches = src.match(/server\.tool\(/g);
-    expect(toolMatches).toHaveLength(5);
+    expect(toolMatches).toHaveLength(12);
   });
 
   it("registers memory_extract tool", () => {
@@ -86,6 +86,46 @@ describe("source code", () => {
 
   it("registers memory_health tool", () => {
     expect(src).toContain('"memory_health"');
+  });
+
+  it("registers vault_setup tool", () => {
+    expect(src).toContain('"vault_setup"');
+  });
+
+  it("registers vault_unlock tool", () => {
+    expect(src).toContain('"vault_unlock"');
+  });
+
+  it("registers vault_lock tool", () => {
+    expect(src).toContain('"vault_lock"');
+  });
+
+  it("registers vault_store tool", () => {
+    expect(src).toContain('"vault_store"');
+  });
+
+  it("registers vault_handles tool", () => {
+    expect(src).toContain('"vault_handles"');
+  });
+
+  it("registers vault_find tool", () => {
+    expect(src).toContain('"vault_find"');
+  });
+
+  it("registers vault_execute tool", () => {
+    expect(src).toContain('"vault_execute"');
+  });
+
+  it("vault tool descriptions mention 'never'", () => {
+    // Extract vault_handles description
+    const handlesIdx = src.indexOf('"vault_handles"');
+    const handlesBlock = src.slice(handlesIdx, handlesIdx + 200);
+    expect(handlesBlock.toLowerCase()).toContain("never");
+
+    // Extract vault_execute description
+    const executeIdx = src.indexOf('"vault_execute"');
+    const executeBlock = src.slice(executeIdx, executeIdx + 200);
+    expect(executeBlock.toLowerCase()).toContain("never");
   });
 
   it("checks for KOVAMIND_API_KEY", () => {
@@ -138,16 +178,32 @@ describe("source code", () => {
     expect(healthBlock).toContain("catch");
   });
 
-  it("does not register vault tools", () => {
-    expect(src).not.toContain('"vault_store"');
-    expect(src).not.toContain('"vault_get"');
-    expect(src).not.toContain('"vault_list"');
-    expect(src).not.toContain('"vault_delete"');
+  it("has error handling (try/catch) in vault_setup tool", () => {
+    const block = src.slice(
+      src.indexOf('"vault_setup"'),
+      src.indexOf('"vault_unlock"')
+    );
+    expect(block).toContain("catch");
+  });
+
+  it("has error handling (try/catch) in vault_execute tool", () => {
+    const block = src.slice(src.indexOf('"vault_execute"'));
+    expect(block).toContain("catch");
   });
 
   it("resolveUserId falls back to env var", () => {
     expect(src).toContain("DEFAULT_USER_ID");
     expect(src).toContain("KOVAMIND_USER_ID");
+  });
+
+  it("vault tools use /vault/v2/ API paths", () => {
+    expect(src).toContain("/vault/v2/setup");
+    expect(src).toContain("/vault/v2/unlock");
+    expect(src).toContain("/vault/v2/lock");
+    expect(src).toContain("/vault/v2/credentials");
+    expect(src).toContain("/vault/v2/handles");
+    expect(src).toContain("/vault/v2/find");
+    expect(src).toContain("/vault/v2/execute");
   });
 });
 

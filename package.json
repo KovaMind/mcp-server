@@ -1,20 +1,30 @@
 {
   "name": "@kovamind/mcp-server",
-  "version": "0.3.0",
-  "description": "MCP server for Kova Mind — use AI memory in Claude Desktop, Cursor, and more",
+  "version": "0.4.1",
+  "description": "MCP server for Kova Mind \u2014 use AI memory in Claude Desktop, Cursor, and more",
   "bin": {
     "kovamind-mcp": "./dist/index.js"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsx src/index.ts",
     "test": "vitest run",
     "prepublishOnly": "npm run build"
   },
-  "keywords": ["mcp", "ai", "memory", "agents", "kovamind", "claude", "cursor"],
+  "keywords": [
+    "mcp",
+    "ai",
+    "memory",
+    "agents",
+    "kovamind",
+    "claude",
+    "cursor"
+  ],
   "author": "Kova Mind <hello@kovamind.ai>",
   "license": "MIT",
   "repository": {
