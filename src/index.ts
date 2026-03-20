@@ -311,6 +311,134 @@ server.tool(
   }
 );
 
+
+// ── Vault v2 Tools ──────────────────────────────────────────────────
+
+// Tool: vault_setup
+server.tool(
+  "vault_setup",
+  "Set up the secrets vault for the first time. Returns 12 recovery words — store them safely. The vault stores credentials that agents can use without ever seeing the values.",
+  {
+    passphrase: z.string().min(8).describe("Vault passphrase (min 8 chars)"),
+  },
+  async ({ passphrase }) => {
+    try {
+      const data = await apiRequest("POST", "/vault/v2/setup", { passphrase });
+      return {
+        content: [{ type: "text" as const, text: `Vault created. Recovery words: ${(data.recovery_words as string[]).join(", ")}\n\nStore these words safely — they are the only way to recover the vault.` }],
+      };
+    } catch (err: any) {
+      return { content: [{ type: "text" as const, text: `Vault setup failed: ${err.message}` }] };
+    }
+  }
+);
+
+// Tool: vault_unlock
+server.tool(
+  "vault_unlock",
+  "Unlock the secrets vault with your passphrase. Required before storing or using credentials.",
+  {
+    passphrase: z.string().min(8).describe("Vault passphrase"),
+  },
+  async ({ passphrase }) => {
+    try {
+      const data = await apiRequest("POST", "/vault/v2/unlock", { passphrase });
+      return { content: [{ type: "text" as const, text: `Vault ${data.status}.` }] };
+    } catch (err: any) {
+      return { content: [{ type: "text" as const, text: `Vault unlock failed: ${err.message}` }] };
+    }
+  }
+);
+
+// Tool: vault_lock
+server.tool(
+  "vault_lock",
+  "Lock the secrets vault. Zeros the encryption key from memory.",
+  {},
+  async () => {
+    try {
+      const data = await apiRequest("POST", "/vault/v2/lock", {});
+      return { content: [{ type: "text" as const, text: `Vault ${data.status}.` }] };
+    } catch (err: any) {
+      return { content: [{ type: "text" as const, text: `Vault lock failed: ${err.message}` }] };
+    }
+  }
+);
+
+// Tool: vault_store
+server.tool(
+  "vault_store",
+  "Store a new credential in the vault. Returns an opaque handle — you will never see the credential values.",
+  {
+    label: z.string().min(1).describe("Human-readable label for the credential"),
+    schema_type: z.string().min(1).describe("Type: username_password, api_key, api_key_pair, database, ssh_key, oauth, custom"),
+    fields: z.record(z.string()).describe("Credential fields (key-value pairs)"),
+    tags: z.string().optional().describe("Comma-separated tags"),
+  },
+  async ({ label, schema_type, fields, tags }) => {
+    try {
+      const body: Record<string, unknown> = { label, schema_type, fields };
+      if (tags) body.tags = tags;
+      const data = await apiRequest("POST", "/vault/v2/credentials", body);
+      return { content: [{ type: "text" as const, text: `Stored credential "${data.label}" with handle: ${data.handle}` }] };
+    } catch (err: any) {
+      return { content: [{ type: "text" as const, text: `Vault store failed: ${err.message}` }] };
+    }
+  }
+);
+
+// Tool: vault_handles
+server.tool(
+  "vault_handles",
+  "List available credential handles. You will never see the credential values — only the handle, label, and type.",
+  {},
+  async () => {
+    try {
+      const data = await apiRequest("GET", "/vault/v2/handles");
+      const handles = (data.handles ?? []) as Array<{ handle: string; label: string; schema_type: string }>;
+      if (handles.length === 0) {
+        return { content: [{ type: "text" as const, text: "No credentials stored." }] };
+      }
+      const lines = handles.map((h, i) => `${i + 1}. [${h.schema_type}] ${h.label} (handle: ${h.handle})`);
+      return { content: [{ type: "text" as const, text: `${handles.length} credential(s):\n${lines.join("\n")}` }] };
+    } catch (err: any) {
+      return { content: [{ type: "text" as const, text: `Vault handles failed: ${err.message}` }] };
+    }
+  }
+);
+
+// Tool: vault_execute
+server.tool(
+  "vault_execute",
+  "Execute an action using a credential. The credential is never exposed to you — it flows through a secure side channel.",
+  {
+    handle: z.string().min(1).describe("Credential handle from vault_handles"),
+    action: z.string().min(1).describe("Action: http_request or browser_fill"),
+    target: z.string().min(1).describe("Target URL"),
+    mapping: z.record(z.string()).optional().describe('Field-to-target mapping (e.g., {" key": "header:Authorization"})'),
+  },
+  async ({ handle, action, target, mapping }) => {
+    try {
+      const body: Record<string, unknown> = { handle, action, target };
+      if (mapping) body.mapping = mapping;
+      const data = await apiRequest("POST", "/vault/v2/execute", body);
+      const success = data.success as boolean;
+      const output = data.output as string;
+      const error = data.error as string | null;
+      const statusCode = data.status_code as number | null;
+
+      let text = success ? "Execution succeeded." : "Execution failed.";
+      if (statusCode) text += ` Status: ${statusCode}.`;
+      if (error) text += ` Error: ${error}.`;
+      if (output) text += `\n\nOutput:\n${output.slice(0, 2000)}`;
+
+      return { content: [{ type: "text" as const, text }] };
+    } catch (err: any) {
+      return { content: [{ type: "text" as const, text: `Vault execute failed: ${err.message}` }] };
+    }
+  }
+);
+
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
