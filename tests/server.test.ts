@@ -133,8 +133,24 @@ describe("source code", () => {
     expect(src).toContain("process.exit(1)");
   });
 
-  it("defaults API URL to https://api.kovamind.ai", () => {
-    expect(src).toContain('"https://api.kovamind.ai"');
+  it("defaults API URL to https://api.kovamind.io", () => {
+    expect(src).toContain('"https://api.kovamind.io"');
+  });
+
+  it("never hard-codes the wrong kovamind.ai TLD", () => {
+    expect(src).not.toContain("kovamind.ai");
+  });
+
+  it("sanitizeErr helper strips URLs from error messages", () => {
+    expect(src).toContain("function sanitizeErr");
+    // Every catch block should route through sanitizeErr, not raw err.message
+    const catchBlocks = src.match(/catch \(err: any\) \{[\s\S]*?\}/g) ?? [];
+    for (const block of catchBlocks) {
+      // Each catch should use sanitizeErr OR not surface err.message at all
+      if (block.includes("err.message")) {
+        expect(block).toContain("sanitizeErr");
+      }
+    }
   });
 
   it("uses Bearer auth in API requests", () => {

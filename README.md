@@ -87,10 +87,12 @@ Add to your Windsurf MCP config:
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `KOVAMIND_API_KEY` | Yes | — | Your Kova Mind API key |
-| `KOVAMIND_API_URL` | No | `https://api.kovamind.ai` | API base URL |
+| `KOVAMIND_API_URL` | No | `https://api.kovamind.io` | API base URL |
 | `KOVAMIND_USER_ID` | No | — | Default user ID for all operations |
 
 ## Available tools
+
+### Memory
 
 | Tool | Description |
 |------|-------------|
@@ -100,9 +102,23 @@ Add to your Windsurf MCP config:
 | `memory_surprise` | Score how novel content is vs existing memory |
 | `memory_health` | Check API health status |
 
+### Vault (zero-exposure credentials)
+
+Credential values never reach the AI. Store a credential once, get back an opaque handle, then ask the AI to act with that handle — the value flows through a secure side channel.
+
+| Tool | Description |
+|------|-------------|
+| `vault_setup` | One-time vault setup. Returns 12 recovery words — store them safely |
+| `vault_unlock` | Unlock the vault with your passphrase |
+| `vault_lock` | Lock the vault and zero the key from memory |
+| `vault_store` | Store a credential. Returns an opaque handle |
+| `vault_handles` | List available handles (never the values) |
+| `vault_find` | Search handles by natural-language query |
+| `vault_execute` | Run an action (http request, browser fill) using a handle |
+
 ## Get an API key
 
-Sign up at [kovamind.ai](https://kovamind.ai) to get your API key.
+Sign up at [kovamind.io](https://kovamind.io) to get your API key.
 
 ## License
 

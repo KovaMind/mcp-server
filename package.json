@@ -1,6 +1,6 @@
 {
   "name": "@kovamind/mcp-server",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "MCP server for Kova Mind \u2014 use AI memory in Claude Desktop, Cursor, and more",
   "bin": {
     "kovamind-mcp": "./dist/index.js"
@@ -25,14 +25,14 @@
     "claude",
     "cursor"
   ],
-  "author": "Kova Mind <hello@kovamind.ai>",
+  "author": "Kova Mind <hello@kovamind.io>",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/KovaMind/mcp-server.git"
   },
   "type": "module",
-  "homepage": "https://kovamind.ai",
+  "homepage": "https://kovamind.io",
   "engines": {
     "node": ">=18"
   },
