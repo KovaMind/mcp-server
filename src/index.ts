@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
-const API_URL = process.env.KOVAMIND_API_URL ?? "https://api.kovamind.ai";
+const API_URL = process.env.KOVAMIND_API_URL ?? "https://api.kovamind.io";
 const API_KEY = process.env.KOVAMIND_API_KEY ?? "";
 const DEFAULT_USER_ID = process.env.KOVAMIND_USER_ID ?? "";
 
@@ -46,8 +46,12 @@ function resolveUserId(user_id?: string): string | null {
 
 const server = new McpServer({
   name: "kovamind",
-  version: "0.1.0",
+  version: "0.4.2",
 });
+
+function sanitizeErr(msg: string | undefined): string {
+  return (msg ?? "unknown error").replace(/https?:\/\/[^\s]+/g, "[redacted]");
+}
 
 // Tool: memory_extract
 server.tool(
@@ -98,7 +102,7 @@ server.tool(
       };
     } catch (err: any) {
       return {
-        content: [{ type: "text" as const, text: `Extract failed: ${err.message?.replace(/https?:\/\/[^\s]+/g, "[redacted]")}` }],
+        content: [{ type: "text" as const, text: `Extract failed: ${sanitizeErr(err.message)}` }],
       };
     }
   }
@@ -175,7 +179,7 @@ server.tool(
       };
     } catch (err: any) {
       return {
-        content: [{ type: "text" as const, text: `Recall failed: ${err.message?.replace(/https?:\/\/[^\s]+/g, "[redacted]")}` }],
+        content: [{ type: "text" as const, text: `Recall failed: ${sanitizeErr(err.message)}` }],
       };
     }
   }
@@ -218,7 +222,7 @@ server.tool(
       };
     } catch (err: any) {
       return {
-        content: [{ type: "text" as const, text: `Reinforce failed: ${err.message?.replace(/https?:\/\/[^\s]+/g, "[redacted]")}` }],
+        content: [{ type: "text" as const, text: `Reinforce failed: ${sanitizeErr(err.message)}` }],
       };
     }
   }
@@ -276,7 +280,7 @@ server.tool(
       };
     } catch (err: any) {
       return {
-        content: [{ type: "text" as const, text: `Surprise failed: ${err.message?.replace(/https?:\/\/[^\s]+/g, "[redacted]")}` }],
+        content: [{ type: "text" as const, text: `Surprise failed: ${sanitizeErr(err.message)}` }],
       };
     }
   }
@@ -303,7 +307,7 @@ server.tool(
         content: [
           {
             type: "text" as const,
-            text: `Health check failed: ${err.message}`,
+            text: `Health check failed: ${sanitizeErr(err.message)}`,
           },
         ],
       };
@@ -328,7 +332,7 @@ server.tool(
         content: [{ type: "text" as const, text: `Vault created. Recovery words: ${(data.recovery_words as string[]).join(", ")}\n\nStore these words safely — they are the only way to recover the vault.` }],
       };
     } catch (err: any) {
-      return { content: [{ type: "text" as const, text: `Vault setup failed: ${err.message}` }] };
+      return { content: [{ type: "text" as const, text: `Vault setup failed: ${sanitizeErr(err.message)}` }] };
     }
   }
 );
@@ -345,7 +349,7 @@ server.tool(
       const data = await apiRequest("POST", "/vault/v2/unlock", { passphrase });
       return { content: [{ type: "text" as const, text: `Vault ${data.status}.` }] };
     } catch (err: any) {
-      return { content: [{ type: "text" as const, text: `Vault unlock failed: ${err.message}` }] };
+      return { content: [{ type: "text" as const, text: `Vault unlock failed: ${sanitizeErr(err.message)}` }] };
     }
   }
 );
@@ -360,7 +364,7 @@ server.tool(
       const data = await apiRequest("POST", "/vault/v2/lock", {});
       return { content: [{ type: "text" as const, text: `Vault ${data.status}.` }] };
     } catch (err: any) {
-      return { content: [{ type: "text" as const, text: `Vault lock failed: ${err.message}` }] };
+      return { content: [{ type: "text" as const, text: `Vault lock failed: ${sanitizeErr(err.message)}` }] };
     }
   }
 );
@@ -382,7 +386,7 @@ server.tool(
       const data = await apiRequest("POST", "/vault/v2/credentials", body);
       return { content: [{ type: "text" as const, text: `Stored credential "${data.label}" with handle: ${data.handle}` }] };
     } catch (err: any) {
-      return { content: [{ type: "text" as const, text: `Vault store failed: ${err.message}` }] };
+      return { content: [{ type: "text" as const, text: `Vault store failed: ${sanitizeErr(err.message)}` }] };
     }
   }
 );
@@ -402,7 +406,7 @@ server.tool(
       const lines = handles.map((h, i) => `${i + 1}. [${h.schema_type}] ${h.label} (handle: ${h.handle})`);
       return { content: [{ type: "text" as const, text: `${handles.length} credential(s):\n${lines.join("\n")}` }] };
     } catch (err: any) {
-      return { content: [{ type: "text" as const, text: `Vault handles failed: ${err.message}` }] };
+      return { content: [{ type: "text" as const, text: `Vault handles failed: ${sanitizeErr(err.message)}` }] };
     }
   }
 );
@@ -425,7 +429,7 @@ server.tool(
       const lines = results.map((r, i) => `${i + 1}. [${r.schema_type}] ${r.label} (handle: ${r.handle}, score: ${r.score.toFixed(2)})`);
       return { content: [{ type: "text" as const, text: `Found ${results.length} match(es):\n${lines.join("\n")}` }] };
     } catch (err: any) {
-      return { content: [{ type: "text" as const, text: `Vault find failed: ${err.message}` }] };
+      return { content: [{ type: "text" as const, text: `Vault find failed: ${sanitizeErr(err.message)}` }] };
     }
   }
 );
@@ -459,7 +463,7 @@ server.tool(
 
       return { content: [{ type: "text" as const, text }] };
     } catch (err: any) {
-      return { content: [{ type: "text" as const, text: `Vault execute failed: ${err.message}` }] };
+      return { content: [{ type: "text" as const, text: `Vault execute failed: ${sanitizeErr(err.message)}` }] };
     }
   }
 );
