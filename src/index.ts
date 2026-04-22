@@ -1,42 +1,77 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { request as httpsRequest } from "node:https";
+import { request as httpRequest } from "node:http";
+import { URL } from "node:url";
+
+const SERVER_VERSION = "0.4.3";
+const USER_AGENT = `Mozilla/5.0 (compatible; kovamind-mcp/${SERVER_VERSION}; +https://github.com/KovaMind/mcp-server)`;
 
 const API_URL = process.env.KOVAMIND_API_URL ?? "https://api.kovamind.io";
 const API_KEY = process.env.KOVAMIND_API_KEY ?? "";
 const DEFAULT_USER_ID = process.env.KOVAMIND_USER_ID ?? "";
+const REQUEST_TIMEOUT_MS = Number(process.env.KOVAMIND_TIMEOUT_MS ?? 30000);
 
 if (!API_KEY) {
   console.error("KOVAMIND_API_KEY environment variable is required");
   process.exit(1);
 }
 
+// We deliberately use node:https rather than global fetch/undici. Cloudflare's
+// Bot Fight Mode on api.kovamind.io fingerprints undici's TLS handshake (JA3)
+// and returns 403 regardless of headers — node:https uses a different TLS stack
+// that CF recognizes as a normal HTTPS client. See README "Why node:https".
 async function apiRequest(
   method: string,
   path: string,
   body?: Record<string, unknown>
 ): Promise<Record<string, any>> {
-  const url = `${API_URL.replace(/\/+$/, "")}${path}`;
-  const init: RequestInit = {
+  const fullUrl = new URL(`${API_URL.replace(/\/+$/, "")}${path}`);
+  const transport = fullUrl.protocol === "http:" ? httpRequest : httpsRequest;
+  const payload = body === undefined ? undefined : JSON.stringify(body);
+
+  const options = {
     method,
+    hostname: fullUrl.hostname,
+    port: fullUrl.port || (fullUrl.protocol === "http:" ? 80 : 443),
+    path: `${fullUrl.pathname}${fullUrl.search}`,
     headers: {
       Authorization: `Bearer ${API_KEY}`,
       "Content-Type": "application/json",
       Accept: "application/json",
+      "User-Agent": USER_AGENT,
+      "X-Kovamind-Client": "mcp-server",
+      "X-Kovamind-Client-Version": SERVER_VERSION,
+      ...(payload !== undefined ? { "Content-Length": Buffer.byteLength(payload).toString() } : {}),
     },
   };
-  if (body !== undefined) {
-    init.body = JSON.stringify(body);
-  }
 
-  const response = await fetch(url, init);
-
-  if (!response.ok) {
-    const text = await response.text().catch(() => "");
-    throw new Error(`API error ${response.status}: ${text}`);
-  }
-
-  return response.json();
+  return await new Promise<Record<string, any>>((resolve, reject) => {
+    const req = transport(options, (res) => {
+      const chunks: Buffer[] = [];
+      res.on("data", (chunk: Buffer) => chunks.push(chunk));
+      res.on("end", () => {
+        const raw = Buffer.concat(chunks).toString("utf8");
+        const status = res.statusCode ?? 0;
+        if (status < 200 || status >= 300) {
+          reject(new Error(`API error ${status}: ${raw.slice(0, 500)}`));
+          return;
+        }
+        try {
+          resolve(raw ? JSON.parse(raw) : {});
+        } catch (err: any) {
+          reject(new Error(`Invalid JSON response: ${err?.message ?? "parse error"}`));
+        }
+      });
+    });
+    req.on("error", (err: Error) => reject(err));
+    req.setTimeout(REQUEST_TIMEOUT_MS, () => {
+      req.destroy(new Error(`Request timed out after ${REQUEST_TIMEOUT_MS}ms`));
+    });
+    if (payload !== undefined) req.write(payload);
+    req.end();
+  });
 }
 
 function resolveUserId(user_id?: string): string | null {
@@ -46,7 +81,7 @@ function resolveUserId(user_id?: string): string | null {
 
 const server = new McpServer({
   name: "kovamind",
-  version: "0.4.2",
+  version: SERVER_VERSION,
 });
 
 function sanitizeErr(msg: string | undefined): string {
