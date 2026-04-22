@@ -2,6 +2,19 @@
 
 All notable changes to `@kovamind/mcp-server` are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
+## [0.4.3] — 2026-04-22
+
+### Fixed
+- **Cloudflare WAF 403 on every API call**: root cause was not a missing header — Node's global `fetch` (undici) produces a TLS JA3 signature that Cloudflare Bot Fight Mode on `api.kovamind.io` rejects outright. Swapped to `node:https`, which uses Node's built-in TLS stack that CF accepts. 0.4.2 installs were completely non-functional against the live API; 0.4.3 is the first release that actually works end-to-end. Verified with a live stdio probe: `memory_health` returns `Status: healthy`, `memory_recall` returns real data.
+
+### Added
+- Identifying `User-Agent`: `Mozilla/5.0 (compatible; kovamind-mcp/<version>; +repo)` — Mozilla-compatible form, no `node/<ver>` suffix (CF flags the literal string "node" in UA).
+- `X-Kovamind-Client` / `X-Kovamind-Client-Version` headers on every request — makes the client identifiable in backend logs and gives the backend a hook for a future WAF allowlist.
+- `KOVAMIND_TIMEOUT_MS` env var (default 30000ms).
+
+### Notes
+- **Backend follow-up (required, separate repo):** Cloudflare Bot Fight Mode should be turned off on `api.kovamind.io` or a WAF skip rule added for requests carrying `X-Kovamind-Client: mcp-server`. Otherwise every future SDK (Python, TS, Go) will hit the same wall, and anyone who re-introduces fetch in this repo breaks production.
+
 ## [0.4.2] — 2026-04-22
 
 ### Fixed

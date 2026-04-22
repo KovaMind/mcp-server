@@ -157,6 +157,32 @@ describe("source code", () => {
     expect(src).toContain("`Bearer ${API_KEY}`");
   });
 
+  it("sends an identifying User-Agent", () => {
+    expect(src).toContain("USER_AGENT");
+    expect(src).toContain("kovamind-mcp/");
+    expect(src).toContain('"User-Agent"');
+  });
+
+  it("sends X-Kovamind-Client header for CF WAF allowlisting", () => {
+    expect(src).toContain('"X-Kovamind-Client"');
+    expect(src).toContain('"X-Kovamind-Client-Version"');
+  });
+
+  it("uses node:https, not fetch (CF WAF blocks undici TLS fingerprint)", () => {
+    expect(src).toContain('from "node:https"');
+    // apiRequest body should not rely on global fetch
+    const apiReqStart = src.indexOf("async function apiRequest");
+    const apiReqEnd = src.indexOf("\n}\n", apiReqStart);
+    const body = src.slice(apiReqStart, apiReqEnd);
+    expect(body).not.toMatch(/\bfetch\(/);
+    expect(body).toContain("httpsRequest");
+  });
+
+  it("honors KOVAMIND_TIMEOUT_MS with a sensible default", () => {
+    expect(src).toContain("KOVAMIND_TIMEOUT_MS");
+    expect(src).toContain("REQUEST_TIMEOUT_MS");
+  });
+
   it("has error handling (try/catch) in extract tool", () => {
     const extractBlock = src.slice(
       src.indexOf('"memory_extract"'),
