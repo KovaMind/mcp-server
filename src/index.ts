@@ -5,7 +5,7 @@ import { request as httpsRequest } from "node:https";
 import { request as httpRequest } from "node:http";
 import { URL } from "node:url";
 
-const SERVER_VERSION = "0.4.3";
+const SERVER_VERSION = "0.4.4";
 const USER_AGENT = `Mozilla/5.0 (compatible; kovamind-mcp/${SERVER_VERSION}; +https://github.com/KovaMind/mcp-server)`;
 
 const API_URL = process.env.KOVAMIND_API_URL ?? "https://api.kovamind.io";
@@ -122,7 +122,7 @@ server.tool(
       const body: Record<string, unknown> = { conversation, user_id: uid };
       if (session_id) body.session_id = session_id;
 
-      const data = await apiRequest("POST", "/memory/extract", body);
+      const data = await apiRequest("POST", "/api/memory/extract", body);
       const patterns = (data.patterns ?? data.results ?? []) as any[];
 
       const lines = [`Extracted ${patterns.length} pattern(s):\n`];
@@ -182,7 +182,7 @@ server.tool(
     }
 
     try {
-      const data = await apiRequest("POST", "/memory/retrieve", {
+      const data = await apiRequest("POST", "/api/memory/retrieve", {
         context,
         user_id: uid,
         max_patterns,
@@ -242,7 +242,7 @@ server.tool(
       };
       if (context) body.context = context;
 
-      const data = await apiRequest("POST", "/memory/reinforce", body);
+      const data = await apiRequest("POST", "/api/memory/reinforce", body);
       const success = data.success ?? true;
 
       return {
@@ -288,7 +288,7 @@ server.tool(
     }
 
     try {
-      const data = await apiRequest("POST", "/memory/surprise", {
+      const data = await apiRequest("POST", "/api/memory/surprise", {
         content,
         user_id: uid,
       });
@@ -362,7 +362,7 @@ server.tool(
   },
   async ({ passphrase }) => {
     try {
-      const data = await apiRequest("POST", "/vault/v2/setup", { passphrase });
+      const data = await apiRequest("POST", "/api/vault/v2/setup", { passphrase });
       return {
         content: [{ type: "text" as const, text: `Vault created. Recovery words: ${(data.recovery_words as string[]).join(", ")}\n\nStore these words safely — they are the only way to recover the vault.` }],
       };
@@ -381,7 +381,7 @@ server.tool(
   },
   async ({ passphrase }) => {
     try {
-      const data = await apiRequest("POST", "/vault/v2/unlock", { passphrase });
+      const data = await apiRequest("POST", "/api/vault/v2/unlock", { passphrase });
       return { content: [{ type: "text" as const, text: `Vault ${data.status}.` }] };
     } catch (err: any) {
       return { content: [{ type: "text" as const, text: `Vault unlock failed: ${sanitizeErr(err.message)}` }] };
@@ -396,7 +396,7 @@ server.tool(
   {},
   async () => {
     try {
-      const data = await apiRequest("POST", "/vault/v2/lock", {});
+      const data = await apiRequest("POST", "/api/vault/v2/lock", {});
       return { content: [{ type: "text" as const, text: `Vault ${data.status}.` }] };
     } catch (err: any) {
       return { content: [{ type: "text" as const, text: `Vault lock failed: ${sanitizeErr(err.message)}` }] };
@@ -418,7 +418,7 @@ server.tool(
     try {
       const body: Record<string, unknown> = { label, schema_type, fields };
       if (tags) body.tags = tags;
-      const data = await apiRequest("POST", "/vault/v2/credentials", body);
+      const data = await apiRequest("POST", "/api/vault/v2/credentials", body);
       return { content: [{ type: "text" as const, text: `Stored credential "${data.label}" with handle: ${data.handle}` }] };
     } catch (err: any) {
       return { content: [{ type: "text" as const, text: `Vault store failed: ${sanitizeErr(err.message)}` }] };
@@ -433,7 +433,7 @@ server.tool(
   {},
   async () => {
     try {
-      const data = await apiRequest("GET", "/vault/v2/handles");
+      const data = await apiRequest("GET", "/api/vault/v2/handles");
       const handles = (data.handles ?? []) as Array<{ handle: string; label: string; schema_type: string }>;
       if (handles.length === 0) {
         return { content: [{ type: "text" as const, text: "No credentials stored." }] };
@@ -456,7 +456,7 @@ server.tool(
   },
   async ({ query }) => {
     try {
-      const data = await apiRequest("GET", `/vault/v2/find?q=${encodeURIComponent(query)}`);
+      const data = await apiRequest("GET", `/api/vault/v2/find?q=${encodeURIComponent(query)}`);
       const results = (data.results ?? []) as Array<{ handle: string; label: string; schema_type: string; score: number }>;
       if (results.length === 0) {
         return { content: [{ type: "text" as const, text: "No matching credentials found." }] };
@@ -485,7 +485,7 @@ server.tool(
       const body: Record<string, unknown> = { handle, action, target };
       if (mapping) body.mapping = mapping;
       if (auto_detect) body.auto_detect = auto_detect;
-      const data = await apiRequest("POST", "/vault/v2/execute", body);
+      const data = await apiRequest("POST", "/api/vault/v2/execute", body);
       const success = data.success as boolean;
       const output = data.output as string;
       const error = data.error as string | null;
