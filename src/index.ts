@@ -5,7 +5,7 @@ import { request as httpsRequest } from "node:https";
 import { request as httpRequest } from "node:http";
 import { URL } from "node:url";
 
-const SERVER_VERSION = "0.4.4";
+const SERVER_VERSION = "1.0.0";
 const USER_AGENT = `Mozilla/5.0 (compatible; kovamind-mcp/${SERVER_VERSION}; +https://github.com/KovaMind/mcp-server)`;
 
 const API_URL = process.env.KOVAMIND_API_URL ?? "https://api.kovamind.io";

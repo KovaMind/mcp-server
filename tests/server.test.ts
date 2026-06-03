@@ -43,8 +43,8 @@ describe("package.json", () => {
     expect(pkg.repository.url).toContain("KovaMind/mcp-server");
   });
 
-  it("requires node >= 18", () => {
-    expect(pkg.engines.node).toBe(">=18");
+  it("requires node >= 20.12", () => {
+    expect(pkg.engines.node).toBe(">=20.12");
   });
 });
 

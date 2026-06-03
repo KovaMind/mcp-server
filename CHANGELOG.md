@@ -2,6 +2,17 @@
 
 All notable changes to `@kovamind/mcp-server` are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.0.0] — 2026-06-02
+
+### Changed
+- **Version bumped to 1.0.0** for the first stable npm publish of the end-to-end-verified memory + vault tool set (12 tools). No runtime behavior change from 0.4.4 — request/auth/URL logic is unchanged. `SERVER_VERSION` (drives the User-Agent and the MCP server version) aligned to `1.0.0`.
+
+### Security
+- **Dev-dependency vulnerabilities cleared (11 → 0).** Upgraded `vitest` to `^4.1.8` (clears the critical Vitest UI advisory) and ran `npm audit fix` to pull patched transitives (`vite`, `postcss`, `hono`, `qs`, `path-to-regexp`, `picomatch`, `fast-uri`, `ip-address`, `@hono/node-server`). Every advisory was in the test/build toolchain only — no production dependency (`@modelcontextprotocol/sdk`, `zod`) was affected and no shipped code changed. Build + 48 tests stay green.
+
+### Documented
+- **New failure mode — Phase-2 bound-key `403`.** An API key can now be bound server-side to a single `user_id`. A request whose `user_id` differs from the key's bound identity returns `HTTP 403 {"detail":"API key is bound to a different agent identity"}`, which surfaces through the normal `... failed: API error 403: ...` tool output. Unbound keys still pass the client-supplied `user_id` through unchanged. See README → Troubleshooting.
+
 ## [0.4.3] — 2026-04-22
 
 ### Fixed

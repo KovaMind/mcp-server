@@ -116,6 +116,24 @@ Credential values never reach the AI. Store a credential once, get back an opaqu
 | `vault_find` | Search handles by natural-language query |
 | `vault_execute` | Run an action (http request, browser fill) using a handle |
 
+## Troubleshooting
+
+### `403 — API key is bound to a different agent identity`
+
+A Kova Mind API key can be **bound** server-side to a single `user_id` (agent identity). If a request's `user_id` does not match the identity the key is bound to, the API returns:
+
+```
+HTTP 403 {"detail":"API key is bound to a different agent identity"}
+```
+
+This surfaces in any tool that takes a `user_id` (e.g. `memory_extract`, `memory_recall`, `memory_surprise`) as a `... failed: API error 403: ...` message.
+
+What to do:
+
+- Make sure the `user_id` you pass (or the `KOVAMIND_USER_ID` env var) matches the identity the key was issued for.
+- **Unbound** keys are unaffected — they pass the client-supplied `user_id` through unchanged, so a single unbound key can serve multiple users.
+- If you need one key per agent, bind the key to that agent's `user_id` and always send the matching `user_id`.
+
 ## Get an API key
 
 Sign up at [kovamind.io](https://kovamind.io) to get your API key.
