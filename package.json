@@ -34,7 +34,7 @@
   "type": "module",
   "homepage": "https://kovamind.io",
   "engines": {
-    "node": ">=18"
+    "node": ">=20.12"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
