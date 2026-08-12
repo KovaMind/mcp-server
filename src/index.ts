@@ -4,8 +4,10 @@ import { z } from "zod";
 import { request as httpsRequest } from "node:https";
 import { request as httpRequest } from "node:http";
 import { URL } from "node:url";
+import { detectCredentials, redactCredentials } from "./credential-guard.js";
+import { runSetup } from "./setup.js";
 
-const SERVER_VERSION = "1.0.0";
+const SERVER_VERSION = "1.1.0";
 const USER_AGENT = `Mozilla/5.0 (compatible; kovamind-mcp/${SERVER_VERSION}; +https://github.com/KovaMind/mcp-server)`;
 
 const API_URL = process.env.KOVAMIND_API_URL ?? "https://api.kovamind.io";
@@ -13,7 +15,11 @@ const API_KEY = process.env.KOVAMIND_API_KEY ?? "";
 const DEFAULT_USER_ID = process.env.KOVAMIND_USER_ID ?? "";
 const REQUEST_TIMEOUT_MS = Number(process.env.KOVAMIND_TIMEOUT_MS ?? 30000);
 
-if (!API_KEY) {
+// `kovamind-mcp setup` runs the interactive wizard instead of the server —
+// it asks for the API key itself, so the env-var requirement is skipped.
+const IS_SETUP_MODE = process.argv[2] === "setup";
+
+if (!API_KEY && !IS_SETUP_MODE) {
   console.error("KOVAMIND_API_KEY environment variable is required");
   process.exit(1);
 }
@@ -91,7 +97,7 @@ function sanitizeErr(msg: string | undefined): string {
 // Tool: memory_extract
 server.tool(
   "memory_extract",
-  "Extract memory patterns from a conversation. Parses messages and stores learned patterns about the user.",
+  "Extract memory patterns from a conversation. Parses messages and stores learned patterns about the user. Credential-guarded — refuses conversations containing API keys or secrets.",
   {
     conversation: z
       .array(z.object({ role: z.string(), content: z.string() }))
@@ -113,6 +119,21 @@ server.tool(
           {
             type: "text" as const,
             text: "Error: user_id is required. Provide it as a parameter or set KOVAMIND_USER_ID.",
+          },
+        ],
+      };
+    }
+
+    // Credential guard: block accidental secret storage BEFORE anything
+    // reaches the API. A memory product silently remembering a pasted API
+    // key is the failure mode this prevents.
+    const guard = detectCredentials(conversation.map((m) => m.content).join("\n"));
+    if (guard.detected) {
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Credential detected in conversation (type: ${guard.type}). Memory storage blocked. Use the \`vault_store\` tool instead to securely encrypt this secret.`,
           },
         ],
       };
@@ -491,10 +512,13 @@ server.tool(
       const error = data.error as string | null;
       const statusCode = data.status_code as number | null;
 
+      // Mask credentials in echoed output: a target endpoint that reflects
+      // the injected credential (echo endpoints, request dumps, error pages)
+      // must never leak the raw value back into the AI's context.
       let text = success ? "Execution succeeded." : "Execution failed.";
       if (statusCode) text += ` Status: ${statusCode}.`;
-      if (error) text += ` Error: ${error}.`;
-      if (output) text += `\n\nOutput:\n${output.slice(0, 2000)}`;
+      if (error) text += ` Error: ${redactCredentials(error)}.`;
+      if (output) text += `\n\nOutput:\n${redactCredentials(output.slice(0, 2000))}`;
 
       return { content: [{ type: "text" as const, text }] };
     } catch (err: any) {
@@ -504,6 +528,10 @@ server.tool(
 );
 
 async function main() {
+  if (IS_SETUP_MODE) {
+    await runSetup(process.argv.slice(3));
+    return;
+  }
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }

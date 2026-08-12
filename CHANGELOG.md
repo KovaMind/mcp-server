@@ -2,6 +2,18 @@
 
 All notable changes to `@kovamind/mcp-server` are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] — 2026-08-11
+
+Three features harvested from the private March-era `kovamind-mcp` build and adapted to this server.
+
+### Added
+- **Credential guard on `memory_extract`.** 17 regex patterns (OpenAI, Anthropic, Stripe, GitHub, AWS, Slack, Google, npm, Kova Mind keys, Bearer tokens, private keys, SSNs, inline passwords, hex secrets — mirrors the backend's `blocklist.py`) run client-side on the conversation BEFORE it reaches the API. On a match the tool refuses with a clear message pointing at `vault_store` instead of silently storing a pasted secret. `src/credential-guard.ts`, ported with its full 28-test suite.
+- **`setup` subcommand** — interactive wizard (`npx @kovamind/mcp-server setup`). Health-checks the API at `/api/health`, then writes the `kovamind` MCP entry into every detected client: Claude Code (via `claude mcp add`), Claude Desktop, Cursor, Windsurf, Cline, Antigravity, Gemini CLI. `--dry-run` / `--print` renders the exact plan (API key masked) without writing anything. Adapted from the donor: this server's env vars (`KOVAMIND_API_URL` / `KOVAMIND_API_KEY` / `KOVAMIND_USER_ID` — no agent id or vault passphrase), default URL `https://api.kovamind.io`.
+
+### Security
+- **`vault_execute` output masking.** The one path where a raw secret could echo back into the AI's context: an executed HTTP request whose target reflects the injected credential (echo endpoints, request dumps, error pages). Output and error text now pass through `redactCredentials`, replacing credential-shaped substrings with `[REDACTED <type>]` placeholders.
+- **Vault masking review finding:** no other vault tool can return a stored secret. Vault v2 is handle-based — `vault_store`/`vault_handles`/`vault_find` return only handle + label + type, and there is no `vault_get`. `vault_setup`'s recovery words are intentionally shown in full, once: they are the only recovery path and masking them would destroy their purpose.
+
 ## [1.0.0] — 2026-06-02
 
 ### Changed

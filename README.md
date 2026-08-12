@@ -6,6 +6,16 @@ MCP server for **Kova Mind** — use AI memory in Claude Desktop, Cursor, Windsu
 
 ## Quick setup
 
+### Setup wizard (recommended)
+
+```bash
+npx @kovamind/mcp-server setup
+```
+
+The wizard health-checks the API, detects your installed MCP clients — Claude Code, Claude Desktop, Cursor, Windsurf, Cline, Antigravity, Gemini CLI — and writes the `kovamind` server entry into each one. Add `--dry-run` (or `--print`) to see exactly what would be written (API key masked) without touching any config.
+
+Prefer manual configuration? Use the per-client snippets below.
+
 ### Claude Desktop
 
 Add to your `claude_desktop_config.json`:
@@ -96,7 +106,7 @@ Add to your Windsurf MCP config:
 
 | Tool | Description |
 |------|-------------|
-| `memory_extract` | Extract memory patterns from a conversation |
+| `memory_extract` | Extract memory patterns from a conversation. **Credential-guarded** — refuses to store text containing API keys or secrets (see below) |
 | `memory_recall` | Retrieve relevant memories for a context |
 | `memory_reinforce` | Confirm, deny, strengthen, or weaken a pattern |
 | `memory_surprise` | Score how novel content is vs existing memory |
@@ -115,6 +125,12 @@ Credential values never reach the AI. Store a credential once, get back an opaqu
 | `vault_handles` | List available handles (never the values) |
 | `vault_find` | Search handles by natural-language query |
 | `vault_execute` | Run an action (http request, browser fill) using a handle |
+
+`vault_execute` output is additionally scrubbed: if the executed request's response echoes a credential (echo endpoints, request dumps), it comes back as `[REDACTED <type>]`, never the raw value.
+
+## Credential guard
+
+A memory product that silently stores a pasted API key is a security failure. `memory_extract` runs 17 client-side detection patterns (OpenAI, Anthropic, Stripe, GitHub, AWS, Slack, Google, npm, Kova Mind keys, Bearer tokens, private keys, SSNs, inline passwords, generic hex secrets) on the conversation **before** anything reaches the API. On a match, the tool refuses and points you at `vault_store`, which encrypts the secret and returns an opaque handle instead.
 
 ## Troubleshooting
 

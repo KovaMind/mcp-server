@@ -1,6 +1,6 @@
 {
   "name": "@kovamind/mcp-server",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "MCP server for Kova Mind \u2014 use AI memory in Claude Desktop, Cursor, and more",
   "bin": {
     "kovamind-mcp": "./dist/index.js"
