@@ -2,6 +2,16 @@
 
 All notable changes to `@kovamind/mcp-server` are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.1.1] — 2026-08-11
+
+Wire-shape fixes: the memory tools now match what the backend actually sends and accepts (same class of bugs fixed in js-sdk PR #4).
+
+### Fixed
+- **`memory_reinforce` enum matched only 1 of the backend's 3 values.** The tool offered `confirmed | denied | strengthened | weakened`, but the API accepts `confirmed | contradicted | used` — three of the four old values were guaranteed 422s. The zod enum, tool description, and README now carry the real three verbs.
+- **`memory_reinforce` fabricated success.** The handler read `data.success ?? true`, but `ReinforceResponse` has no `success` field — so `?? true` reported success unconditionally. The tool now reports the response's real fields: `pattern_id`, `reinforcement_type`, `previous_confidence` → `new_confidence`, and `timestamp`.
+- **`memory_extract` / `memory_recall` printed `[unknown] undefined`.** Both tools rendered `p.category` / `p.pattern` / `p.id`, but the wire sends `pattern_type` / `content` / `pattern_id`. Mapped to the real field names.
+- **`memory_recall` silently overrode the server's confidence default.** An omitted `min_confidence` was sent as a client-side `0.3`, hiding memories the server default (`0.1`) would have returned. The parameter is now only sent when the caller provides it; the tool description documents the server default.
+
 ## [1.1.0] — 2026-08-11
 
 Three features harvested from the private March-era `kovamind-mcp` build and adapted to this server.

@@ -7,7 +7,7 @@ import { URL } from "node:url";
 import { detectCredentials, redactCredentials } from "./credential-guard.js";
 import { runSetup } from "./setup.js";
 
-const SERVER_VERSION = "1.1.0";
+const SERVER_VERSION = "1.1.1";
 const USER_AGENT = `Mozilla/5.0 (compatible; kovamind-mcp/${SERVER_VERSION}; +https://github.com/KovaMind/mcp-server)`;
 
 const API_URL = process.env.KOVAMIND_API_URL ?? "https://api.kovamind.io";
@@ -149,7 +149,7 @@ server.tool(
       const lines = [`Extracted ${patterns.length} pattern(s):\n`];
       for (const p of patterns) {
         lines.push(
-          `- [${p.category ?? "unknown"}] ${p.pattern} (confidence: ${((p.confidence ?? 1) * 100).toFixed(0)}%)`
+          `- [${p.pattern_type ?? "unknown"}] ${p.content} (confidence: ${((p.confidence ?? 1) * 100).toFixed(0)}%)`
         );
       }
 
@@ -186,8 +186,9 @@ server.tool(
     min_confidence: z
       .number()
       .optional()
-      .default(0.3)
-      .describe("Minimum confidence threshold (0.0-1.0)"),
+      .describe(
+        "Minimum confidence threshold (0.0-1.0). Omit to use the server default of 0.1"
+      ),
   },
   async ({ context, user_id, max_patterns, min_confidence }) => {
     const uid = resolveUserId(user_id);
@@ -203,12 +204,17 @@ server.tool(
     }
 
     try {
-      const data = await apiRequest("POST", "/api/memory/retrieve", {
+      // Only send min_confidence when the caller provided one — otherwise
+      // the server's own default (0.1) applies. Sending a client-side
+      // default here would silently hide lower-confidence memories.
+      const body: Record<string, unknown> = {
         context,
         user_id: uid,
         max_patterns,
-        min_confidence,
-      });
+      };
+      if (min_confidence !== undefined) body.min_confidence = min_confidence;
+
+      const data = await apiRequest("POST", "/api/memory/retrieve", body);
 
       const patterns = (data.patterns ??
         data.results ??
@@ -226,7 +232,7 @@ server.tool(
       const lines = [`Found ${patterns.length} memory pattern(s):\n`];
       for (const p of patterns) {
         lines.push(
-          `- [${p.category ?? "unknown"}] ${p.pattern} (confidence: ${((p.confidence ?? 1) * 100).toFixed(0)}%, id: ${p.id})`
+          `- [${p.pattern_type ?? "unknown"}] ${p.content} (confidence: ${((p.confidence ?? 1) * 100).toFixed(0)}%, id: ${p.pattern_id})`
         );
       }
 
@@ -244,11 +250,11 @@ server.tool(
 // Tool: memory_reinforce
 server.tool(
   "memory_reinforce",
-  "Reinforce or deny a stored memory pattern. Use 'confirmed' when the user validates a memory, 'denied' when they contradict it.",
+  "Reinforce a stored memory pattern. Use 'confirmed' when the user validates a memory, 'contradicted' when they contradict it, 'used' when the memory was applied.",
   {
     pattern_id: z.string().describe("The ID of the pattern to reinforce"),
     reinforcement_type: z
-      .enum(["confirmed", "denied", "strengthened", "weakened"])
+      .enum(["confirmed", "contradicted", "used"])
       .describe("Type of reinforcement to apply"),
     context: z
       .string()
@@ -263,18 +269,26 @@ server.tool(
       };
       if (context) body.context = context;
 
+      // The backend's ReinforceResponse has no success flag — it returns
+      // pattern_id / previous_confidence / new_confidence /
+      // reinforcement_type / timestamp. Report those fields as-is.
       const data = await apiRequest("POST", "/api/memory/reinforce", body);
-      const success = data.success ?? true;
+
+      const lines = [
+        `Pattern ${data.pattern_id ?? pattern_id} marked ${data.reinforcement_type ?? reinforcement_type}.`,
+      ];
+      if (
+        typeof data.previous_confidence === "number" &&
+        typeof data.new_confidence === "number"
+      ) {
+        lines.push(
+          `Confidence: ${((data.previous_confidence as number) * 100).toFixed(0)}% -> ${((data.new_confidence as number) * 100).toFixed(0)}%`
+        );
+      }
+      if (data.timestamp) lines.push(`Timestamp: ${data.timestamp}`);
 
       return {
-        content: [
-          {
-            type: "text" as const,
-            text: success
-              ? `Pattern ${pattern_id} ${reinforcement_type} successfully.`
-              : `Failed to reinforce pattern ${pattern_id}.`,
-          },
-        ],
+        content: [{ type: "text" as const, text: lines.join("\n") }],
       };
     } catch (err: any) {
       return {
