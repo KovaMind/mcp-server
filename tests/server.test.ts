@@ -301,6 +301,40 @@ describe("integration", () => {
   }, 10000); // 10s timeout for this test
 });
 
+// ── Harvested features (1.1.0): guard, masking, setup wizard ────────
+
+describe("harvested features", () => {
+  it("SERVER_VERSION matches package.json version", () => {
+    expect(src).toContain(`SERVER_VERSION = "${pkg.version}"`);
+  });
+
+  it("memory_extract is credential-guarded before any API call", () => {
+    const extractBlock = src.slice(
+      src.indexOf('"memory_extract"'),
+      src.indexOf('"memory_recall"')
+    );
+    const guardIdx = extractBlock.indexOf("detectCredentials");
+    const apiIdx = extractBlock.indexOf("apiRequest");
+    expect(guardIdx).toBeGreaterThan(-1);
+    expect(apiIdx).toBeGreaterThan(guardIdx);
+  });
+
+  it("vault_execute output and error are redacted", () => {
+    const block = src.slice(src.indexOf('"vault_execute"'));
+    expect(block).toContain("redactCredentials(output");
+    expect(block).toContain("redactCredentials(error)");
+  });
+
+  it("dispatches the setup subcommand", () => {
+    expect(src).toContain('process.argv[2] === "setup"');
+    expect(src).toContain("runSetup");
+  });
+
+  it("setup mode skips the env API key requirement", () => {
+    expect(src).toContain("!API_KEY && !IS_SETUP_MODE");
+  });
+});
+
 // ── Built output validation ─────────────────────────────────────────
 
 describe("built output", () => {
