@@ -6,6 +6,7 @@ import { execSync, spawn } from "child_process";
 const ROOT = join(__dirname, "..");
 const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf-8"));
 const src = readFileSync(join(ROOT, "src", "index.ts"), "utf-8");
+const readme = readFileSync(join(ROOT, "README.md"), "utf-8");
 
 // ── Package structure ────────────────────────────────────────────────
 
@@ -332,6 +333,72 @@ describe("harvested features", () => {
 
   it("setup mode skips the env API key requirement", () => {
     expect(src).toContain("!API_KEY && !IS_SETUP_MODE");
+  });
+});
+
+// ── Real wire shapes (1.1.1): match the backend's actual schemas ────
+
+describe("real wire shapes", () => {
+  it("reinforce enum matches the backend: confirmed | contradicted | used", () => {
+    expect(src).toContain('.enum(["confirmed", "contradicted", "used"])');
+    // The three invented values that 422'd against the real API:
+    expect(src).not.toContain('"denied"');
+    expect(src).not.toContain('"strengthened"');
+    expect(src).not.toContain('"weakened"');
+  });
+
+  it("reinforce reports real ReinforceResponse fields, no fabricated success flag", () => {
+    const block = src.slice(
+      src.indexOf('"memory_reinforce"'),
+      src.indexOf('"memory_surprise"')
+    );
+    // ReinforceResponse has no `success` field — `data.success ?? true`
+    // was unconditional fabricated success.
+    expect(block).not.toContain("data.success");
+    expect(block).toContain("previous_confidence");
+    expect(block).toContain("new_confidence");
+    expect(block).toContain("timestamp");
+  });
+
+  it("extract renders wire fields pattern_type/content, not category/pattern", () => {
+    const block = src.slice(
+      src.indexOf('"memory_extract"'),
+      src.indexOf('"memory_recall"')
+    );
+    expect(block).toContain("p.pattern_type");
+    expect(block).toContain("p.content");
+    expect(block).not.toContain("p.category");
+    expect(block).not.toMatch(/p\.pattern\b/); // p.pattern_type is fine; bare p.pattern is not
+  });
+
+  it("recall renders wire fields pattern_type/content/pattern_id, not category/pattern/id", () => {
+    const block = src.slice(
+      src.indexOf('"memory_recall"'),
+      src.indexOf('"memory_reinforce"')
+    );
+    expect(block).toContain("p.pattern_type");
+    expect(block).toContain("p.content");
+    expect(block).toContain("p.pattern_id");
+    expect(block).not.toContain("p.category");
+    expect(block).not.toMatch(/p\.pattern\b/);
+    expect(block).not.toMatch(/p\.id\b/);
+  });
+
+  it("recall sends min_confidence only when the caller provides it", () => {
+    const block = src.slice(
+      src.indexOf('"memory_recall"'),
+      src.indexOf('"memory_reinforce"')
+    );
+    expect(block).toContain("min_confidence !== undefined");
+    // No client-side default silently overriding the server's 0.1:
+    expect(block).not.toContain("default(0.3)");
+    // The parameter description documents the server default instead:
+    expect(block).toContain("server default of 0.1");
+  });
+
+  it("README documents the real three reinforcement verbs", () => {
+    expect(readme).toContain("confirmed, contradicted, or used");
+    expect(readme).not.toContain("strengthen, or weaken");
   });
 });
 

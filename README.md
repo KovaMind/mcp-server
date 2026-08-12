@@ -108,7 +108,7 @@ Add to your Windsurf MCP config:
 |------|-------------|
 | `memory_extract` | Extract memory patterns from a conversation. **Credential-guarded** — refuses to store text containing API keys or secrets (see below) |
 | `memory_recall` | Retrieve relevant memories for a context |
-| `memory_reinforce` | Confirm, deny, strengthen, or weaken a pattern |
+| `memory_reinforce` | Mark a pattern as confirmed, contradicted, or used |
 | `memory_surprise` | Score how novel content is vs existing memory |
 | `memory_health` | Check API health status |
 
